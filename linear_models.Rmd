@@ -71,3 +71,108 @@ fit %>%
 
 ```
 
+## Some diagnostics
+
+(backtract to some EDA)
+```{r}
+nyc_airbnb %>% 
+  ggplot(aes(x=stars, y=price))+
+  geom_point()+
+  stat_smooth(method = "lm")
+```
+
+
+Most diagnostics use residuals
+
+```{r}
+modelr::add_residuals(nyc_airbnb, fit) %>% 
+  ggplot(aes(x=borough, y=resid))+
+  geom_violin()+
+  ylim(-100,100)
+```
+
+Residuals against fitted values
+
+```{r}
+nyc_airbnb %>% 
+  modelr::add_residuals(fit) %>% 
+  modelr::add_predictions(fit) %>% 
+  ggplot(aes(x=pred, y=resid))+
+  geom_point()
+```
+
+
+```{r}
+
+```
+
+## hypothesis testing
+
+
+```{r}
+fit_null %>% 
+  broom::tidy()
+
+fit_alt %>% 
+  broom::tidy()
+
+
+fit_null = lm(price~stars +borough, data = nyc_airbnb)
+
+fit_alt = lm(price ~ stars + borough + room_type, data = nyc_airbnb)
+
+anova(fit_null, fit_alt) %>% 
+  broom::tidy()
+```
+
+
+## do effects differ across boroughs
+
+First, use a lot of interactions
+
+```{r}
+nyc_airbnb %>% 
+  lm(price ~ stars * borough + room_type * borough, data = .)%>% 
+  broom::tidy()
+
+nyc_airbnb |> 
+  lm(price ~ stars * borough + room_type * borough, data = _) |> 
+  broom::tidy() |> 
+  knitr::kable(digits = 3)
+```
+
+
+```{r}
+nest_lm_res =
+  nyc_airbnb |> 
+  nest(data = -borough) |> 
+  mutate(
+    models = map(data, \(df) lm(price ~ stars + room_type, data = df)),
+    results = map(models, broom::tidy)) |> 
+  select(-data, -models) |> 
+  unnest(results)
+
+
+nest_lm_res |> 
+  select(borough, term, estimate) |> 
+  mutate(term = fct_inorder(term)) |> 
+  pivot_wider(
+    names_from = term, values_from = estimate) |> 
+  knitr::kable(digits = 3)
+```
+
+```{r}
+manhattan_airbnb =
+  nyc_airbnb |> 
+  filter(borough == "Manhattan")
+
+manhattan_nest_lm_res =
+  manhattan_airbnb |> 
+  nest(data = -neighborhood) |> 
+  mutate(
+    models = map(data, \(df) lm(price ~ stars + room_type, data = df)),
+    results = map(models, broom::tidy)) |> 
+  select(-data, -models) |> 
+  unnest(results)
+```
+
