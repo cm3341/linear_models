@@ -99,11 +99,38 @@ sim_df_nonconstant %>%
 ```{r}
 boot_straps =
   tibble(
-    strap_number = 1:10
+    strap_number = 1:1000
   ) %>% 
   mutate(
     strap_sample = map(strap_number, \(i) boot_sample(df = sim_df_nonconstant)), 
-    models = map(strap_sample, \(df) lm(y~x, data =df))
+    models = map(strap_sample, \(df) lm(y~x, data =df)), 
+    results = map(models, broom::tidy)
   )
+
+bootstrap_results = 
+  boot_straps %>% 
+  select(strap_number, results) %>% 
+  unnest(results) %>% 
+  group_by(term) %>% 
+  summarize(
+    boot_se = sd(estimate)
+  ) %>% 
+  knitr::kable(digits = 3)
+```
+
+
+## do this all using modelr
+
+```{r}
+boot_straps = 
+  sim_df_nonconstant %>% 
+  modelr::bootstrap(1000) %>% 
+  mutate(
+    strap = map(strap, as_tibble),
+    models = map(strap, \(df) lm(y~x, data = df)),
+    results = map(models, broom::tidy)
+  ) %>% 
+    select(.id, results) %>% 
+    unnest(results)
 ```
 
