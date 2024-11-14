@@ -101,25 +101,21 @@ nyc_airbnb %>%
   geom_point()
 ```
 
-
-```{r}
-
-```
-
 ## hypothesis testing
 
 
 ```{r}
+
+fit_null = lm(price~stars +borough, data = nyc_airbnb)
+
+fit_alt = lm(price ~ stars + borough + room_type, data = nyc_airbnb)
+
 fit_null %>% 
   broom::tidy()
 
 fit_alt %>% 
   broom::tidy()
 
-
-fit_null = lm(price~stars +borough, data = nyc_airbnb)
-
-fit_alt = lm(price ~ stars + borough + room_type, data = nyc_airbnb)
 
 anova(fit_null, fit_alt) %>% 
   broom::tidy()
@@ -162,17 +158,37 @@ nest_lm_res |>
 ```
 
 ```{r}
-manhattan_airbnb =
-  nyc_airbnb |> 
-  filter(borough == "Manhattan")
-
-manhattan_nest_lm_res =
-  manhattan_airbnb |> 
-  nest(data = -neighborhood) |> 
+manhattan_neighborhood_fit_df = 
+nyc_airbnb %>% 
+  filter(borough =="Manhattan") %>% 
+  nest(data = -(borough:neighborhood)) %>% 
   mutate(
-    models = map(data, \(df) lm(price ~ stars + room_type, data = df)),
-    results = map(models, broom::tidy)) |> 
-  select(-data, -models) |> 
+    model= map(data, \(x) lm(price~stars + room_type, data = x)),
+    results = map(model, broom::tidy
+  )) %>% 
+  select(neighborhood, results) %>% 
   unnest(results)
+
+
+```
+
+look at the effect of room type
+```{r}
+manhattan_neighborhood_fit_df %>% 
+  filter(str_detect(term, "room_type")) %>% 
+  ggplot(aes(x = term, y = estimate))+
+  geom_boxplot()
+```
+
+```{r}
+manhattan_neighborhood_fit_df %>% 
+  filter(str_detect(term, "room_type")) %>% 
+  filter(estimate>0)
+
+nyc_airbnb %>% 
+  filter(
+    neighborhood == "NoHo",
+    room_type == "Shared room"
+  )
 ```
 
